@@ -79,8 +79,8 @@ history = model.fit(partial_x_train,
 import matplotlib.pyplot as plt
 
 history_dict = history.history
-loss_values = history_dict['loss']
-val_loss_values = history_dict['val_loss']
+loss_values = history_dict['loss']# valores de perdida del set entrenamiento
+val_loss_values = history_dict['val_loss']# valores de perdida del set de validacion
 
 fig = plt.figure(figsize=(10,10))
 epoch = range(1,len(loss_values)+1)
@@ -201,3 +201,68 @@ plt.plot(epoch,val_loss_values4, 'o',label='dropout')
 plt.plot(epoch,val_loss_values, '--',label='original')
 plt.legend()
 plt.show()
+
+#Evaluamos modelo 4
+model4.evaluate(x_test,y_test)
+
+"""## Se combina las 4 regularizaciones"""
+
+model5 = models.Sequential()
+model5.add(layers.Dense(5, activation='relu', input_shape=(10000,),kernel_regularizer=regularizers.l2(0.001)))
+model5.add(layers.Dropout(0.5))# para que desactive el 50 % de las neuronas
+model5.add(layers.Dense(5, activation='relu',kernel_regularizer=regularizers.l2(0.001)))
+model5.add(layers.Dropout(0.5))
+model5.add(layers.Dense(1, activation='sigmoid'))
+
+model5.compile(optimizer='rmsprop',
+              loss='binary_crossentropy',
+             metrics=['acc'])
+
+history5 = model5.fit(partial_x_train,
+                   partial_y_train,
+                   epochs=20,
+                   batch_size=512,
+                   validation_data=(x_val,y_val))
+
+history_dict = history.history
+loss_values = history_dict['loss']
+val_loss_values = history_dict['val_loss']
+
+val_loss_values2 = history2.history['val_loss']
+val_loss_values3 = history3.history['val_loss']
+val_loss_values4 = history4.history['val_loss']
+val_loss_values5 = history5.history['val_loss']
+
+
+fig = plt.figure(figsize=(10,10))
+epoch = range(1,len(loss_values)+1)
+plt.plot(epoch,val_loss_values5,label='Todas')
+plt.plot(epoch,val_loss_values4,label='dropout')
+plt.plot(epoch,val_loss_values3,label='Regularizacion')
+plt.plot(epoch,val_loss_values2,label='less_Neurons')
+plt.plot(epoch,val_loss_values,label='original')
+plt.legend()
+plt.show()
+
+# Datos de ejemplo
+data = {
+    "descripcion": ["Modelo con regularización L2", "Modelo con dropout", "Modelo con data augmentation"],
+    "accuracy": [0.85, 0.88, 0.90]
+}
+
+accuracy_1 = model.evaluate(x_test,y_test)[1]
+
+accuracy_2 = model2.evaluate(x_test,y_test)[1]
+accuracy_3 = model3.evaluate(x_test,y_test)[1]
+accuracy_4 = model4.evaluate(x_test,y_test)[1]
+accuracy_5 = model5.evaluate(x_test,y_test)[1]
+
+# Accuaracy de los modelos
+import pandas as pd
+dict_accuracy = { 'descripcion':['Modelo original','Modelo con menos neuronas','Modelo con regularizacion L2','Modelo con dropout','Modelo menos neuronas y con regularizacion L2 y Dropout'],
+                 'accuracy':[accuracy_1,accuracy_2,accuracy_3,accuracy_4,accuracy_5]}
+# Crear DataFrame con índices personalizados
+indices = [f"modelo{i}" for i in range(1, len(dict_accuracy["descripcion"]) + 1)]
+df = pd.DataFrame(dict_accuracy, index=indices)
+
+df
