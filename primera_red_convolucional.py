@@ -39,3 +39,32 @@ train_labels[0] # Lo que hizo la funcion to_categorical fue converstir el valor 
 
 """# Creacion del modelo"""
 
+model = tf.keras.Sequential()
+model.add(Conv2D(filters=64 , kernel_size=2,padding='same',activation='relu',input_shape=(28,28,1)))
+model.add(MaxPooling2D(pool_size=2))
+model.add(Dropout(0.3))
+model.add(Conv2D(filters=32,kernel_size=2 , padding = 'same', activation = 'relu'))
+model.add(MaxPooling2D(pool_size=2))
+model.add(Dropout(0.3))
+model.add(Flatten())
+model.add(Dense(256, activation='relu'))
+model.add(Dropout(0.5))
+model.add(Dense(10, activation='softmax'))
+# Take a look at the model summary
+model.summary()
+
+"""## Compilando Red Neuronal"""
+
+model.compile(loss='categorical_crossentropy',
+             optimizer='rmsprop',
+             metrics=['accuracy'])
+
+"""## Entrenando la Red"""
+
+model.fit(train_images,train_labels, batch_size=64,epochs=10)
+
+"""## Analisis de Resultados"""
+
+score = model.evaluate(test_images, test_labels, verbose=0)
+
+score
