@@ -30,7 +30,7 @@ plt.imshow(x_train[45])
 
 """Limpieza de datos"""
 
-# pasamos a float32 y dividimos entre 255
+# pasamos a float32
 x_train = x_train.astype('float32')
 x_test = x_test.astype('float32')
 
@@ -46,15 +46,36 @@ y_train[0]
 
 """Normalizacion"""
 
-x_train/=255
-x_test/=255
+# Dividimos entre 255 par aque tenga valores de 0 - 1
+#x_train/=255
+#x_test/=255
+
+mean = np.mean(x_train)
+std = np.std(x_train)
+
+x_train = (x_train - mean) / (std+1e-7)
+x_test = (x_test - mean) / (std+1e-7)
+
+x_train[0]
 
 """Creando set de datos de entrenamiento y validacion"""
 
+# x_train endra los valores del 10,000 al 50 ,000 y el x_val del 0 - 9,999
 (x_train,x_valid) = x_train[10000:] , x_train[:10000]
 (y_train,y_valid) = y_train[10000:] , y_train[:10000]
 
-"""Contruyendo nuestros modelos convolucionales"""
+"""#### Batch Normalization
+
+Aplicación de Batch Normalization:
+Con la normalización por lotes, se calcula la media y la desviación estándar de las activaciones en cada mini lote de datos que pasa por la red. Luego, se normalizan las activaciones utilizando la fórmula mencionada anteriormente. Además, se introducen parámetros aprendidos 𝛾 γ (escala) y 𝛽 β (sesgo) para ajustar las activaciones normalizadas según sea necesario.
+
+Efecto de Batch Normalization:
+Después de aplicar la normalización por lotes, las distribuciones de activaciones se vuelven más estables y centradas alrededor de cero. Esto facilita el entrenamiento de la red y acelera la convergencia.
+
+La normalización por lotes ayuda a mantener las activaciones de las capas ocultas en rangos más estables y cercanos a cero, lo que mejora la estabilidad y velocidad de entrenamiento de las redes neuronales profundas.
+
+## Contruyendo nuestros modelos convolucionales
+"""
 
 def convolucional1(filtros,df,regulatizer):
 
@@ -63,11 +84,14 @@ def convolucional1(filtros,df,regulatizer):
   #Conv1
   model.add(Conv2D(filtros,(3,3),padding='same',kernel_regularizer=regularizers.l2(regulatizer),input_shape=df.shape[1:]))
   model.add(Activation('relu'))
+  model.add(BatchNormalization()) # Normalizacion de los datos
+
 
   #conv2
   model.add(Conv2D(filtros,(3,3),padding='same'))
   model.add(Activation('relu'))
   model.add(MaxPooling2D(pool_size=(2,2)))
+  model.add(BatchNormalization())
 
 
 
@@ -75,24 +99,28 @@ def convolucional1(filtros,df,regulatizer):
   model.add(Conv2D(2*filtros,(3,3),padding='same'))
   model.add(Activation('relu'))
   model.add(MaxPooling2D(pool_size=(2,2)))
-  model.add(Dropout(0.1))
+  model.add(Dropout(0.4))
+  model.add(BatchNormalization())
 
   #conv4
   model.add(Conv2D(2*filtros,(3,3),padding='same'))
   model.add(Activation('relu'))
-  model.add(Dropout(0.2))
+  model.add(Dropout(0.4))
+  model.add(BatchNormalization())
 
   #conv5
   model.add(Conv2D(4*filtros,(3,3),padding='same'))
   model.add(Activation('relu'))
   model.add(MaxPooling2D(pool_size=(2,2)))
-  model.add(Dropout(0.2))
+  model.add(Dropout(0.5))
+  model.add(BatchNormalization())
 
   #conv6
   model.add(Conv2D(4*filtros,(3,3),padding='same'))
   model.add(Activation('relu'))
   model.add(MaxPooling2D(pool_size=(2,2)))
-  model.add(Dropout(0.2))
+  model.add(Dropout(0.5))
+  model.add(BatchNormalization())
 
   #clasificacion y flatten
   model.add(Flatten())
@@ -102,15 +130,38 @@ def convolucional1(filtros,df,regulatizer):
 
 model = convolucional1(32,x_train,8e-5)
 
+"""### Data argumentation
+
+Funciona para generar mas imagenes con caracterizticas similares a la orgiinal para tener mejores resultados
+"""
+
+datagen = ImageDataGenerator(rotation_range=15,
+                  width_shift_range=0.1,
+                  height_shift_range=0.1,
+                  horizontal_flip=True,
+                  vertical_flip=True)
+
 """compilando"""
 
 model.compile(loss='categorical_crossentropy',optimizer='adam',metrics=['accuracy'])
 
+"""### Callbacks"""
+
+chekcpoint = ModelCheckpoint('mi_mejor_modelo.keras',verbose=1,save_best_only=True, monitor = 'val_accuracy')
+
 """Entrenamiento"""
 
-hist = model.fit(x_train, y_train, batch_size=64,epochs=50,
-               validation_data=(x_valid, y_valid),
-               verbose=2, shuffle=True)
+hist = model.fit(datagen.flow(x_train, y_train, batch_size=128),
+          callbacks=[chekcpoint],
+          steps_per_epoch=x_train.shape[0] // 128, # para obtener el numero de lotes completos y no realice lotes al infinito
+          epochs=70,
+          verbose=2,
+          validation_data=(x_valid, y_valid)
+         )
+
+#hist = model.fit(x_train, y_train, batch_size=64,epochs=50,
+#               validation_data=(x_valid, y_valid),
+ #              verbose=2, shuffle=True)
 
 """Resultados"""
 
@@ -119,7 +170,15 @@ plt.plot(hist.history['val_accuracy'],label='Val')
 plt.legend()
 plt.show()
 
+"""Evaluacion del odelo"""
 
+model.evaluate(x_test,y_test) # sin callbacks ni data generator ni batch optimazier
 
+from keras.models import clone_model # para copiar el elemento y no solo la direccion de memoria
+model2 = clone_model(model)
 
+model2.load_weights('mi_mejor_modelo.keras')
 
+model2.compile(loss='categorical_crossentropy',optimizer='adam',metrics=['accuracy'])
+
+model2.evaluate(x_test,y_test)
