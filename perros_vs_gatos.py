@@ -13,7 +13,7 @@ from google.colab import drive
 drive.mount('/content/drive')
 
 import tensorflow as tf
-from tensorflow.keras.layers import Conv2D, MaxPooling2D, Dropout, Flatten, Dense
+from tensorflow.keras.layers import Conv2D, MaxPooling2D, Dropout, Flatten, Dense ,BatchNormalization
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping
 from  tensorflow.keras import models, optimizers, regularizers
@@ -95,7 +95,7 @@ plt.plot(hist.history['val_accuracy'], label = 'Val')
 plt.legend()
 plt.show()
 
-test_generator = test_datagen.flow_from_directory('../input/cnn-data-sources/cats_and_dogs/test',
+test_generator = test_datagen.flow_from_directory('/content/drive/MyDrive/Leccion Python/Deep_Learning/data/cats_and_dogs/test',
                                  target_size=(150,150),
                                  batch_size=32,
                                  class_mode='binary'
@@ -103,6 +103,62 @@ test_generator = test_datagen.flow_from_directory('../input/cnn-data-sources/cat
 
 model2 = model
 
-model2.load_weights('./modelo_perros_gatos.hdf5')
+model2.load_weights('./modelo_perros_gatos.keras')
 
 model2.evaluate(test_generator)
+
+def model2():
+
+    model =models.Sequential()
+
+
+    #Convolucion 1
+    model.add(Conv2D(32,(3,3),activation='relu',input_shape=(150,150,3)))
+    model.add(MaxPooling2D((2,2)))
+    model.add(BatchNormalization())
+    model.add(Dropout(0.5))
+
+    #Convolucion 2
+    model.add(Conv2D(64,(3,3),activation='relu'))
+    model.add(MaxPooling2D((2,2)))
+    model.add(BatchNormalization())
+    model.add(Dropout(0.5))
+
+    #Convolucion 3
+    model.add(Conv2D(64,(3,3),activation='relu'))
+    model.add(MaxPooling2D((2,2)))
+    model.add(BatchNormalization())
+
+    #Convolucion 4
+    model.add(Conv2D(128,(3,3),activation='relu'))
+    model.add(MaxPooling2D((2,2)))
+    model.add(BatchNormalization())
+    model.add(Dropout(0.4))
+
+    #Convolucion 5
+    model.add(Conv2D(128,(3,3),activation='relu'))
+    model.add(MaxPooling2D((2,2)))
+    model.add(BatchNormalization())
+    model.add(Dropout(0.3))
+
+
+    model.add(Flatten())
+
+
+    # Capas clasificacion
+    model.add(Dense(512,activation='relu'))
+    model.add(Dense(1,activation='sigmoid'))
+
+
+    return model
+
+model3 = model2()
+
+model3.compile(loss='binary_crossentropy',optimizer = optimizers.Adam(learning_rate=0.001), metrics = ['accuracy'])
+
+hist3 = model3.fit(train_generator,
+                steps_per_epoch=2000//64,
+                epochs = 100,
+                validation_data = validation_generator,
+                validation_steps = 1000//64,
+                )
