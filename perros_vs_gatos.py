@@ -13,33 +13,40 @@ from google.colab import drive
 drive.mount('/content/drive')
 
 import tensorflow as tf
-from tensorflow.keras.layers import Conv2D, MaxPooling2D, Dropout, Flatten, Dense ,BatchNormalization
+from tensorflow.keras.layers import Conv2D, MaxPooling2D, Dropout, Flatten, Dense ,BatchNormalization,ReLU,Input
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping
 from  tensorflow.keras import models, optimizers, regularizers
 
 """## Creación del modelo convolucional"""
 
-model = models.Sequential()
+def model1():
+    model = models.Sequential([
+    Input(shape=(150,150,3)),
+    Conv2D(32, (3,3),padding='same'),
+    ReLU(),
+    MaxPooling2D((2,2)),
 
-model.add(Conv2D(32, (3,3), activation= 'relu', input_shape=(150,150,3)))
-model.add(MaxPooling2D((2,2)))
+    Conv2D(64, (3,3),padding='same'),
+    ReLU(),
+    MaxPooling2D((2,2)),
 
-model.add(Conv2D(64, (3,3), activation = 'relu'))
-model.add(MaxPooling2D((2,2)))
+    Conv2D(128, (3,3),padding='same'),
+    ReLU(),
+    MaxPooling2D((2,2)),
 
-model.add(Conv2D(128, (3,3), activation = 'relu'))
-model.add(MaxPooling2D((2,2)))
+    Conv2D(128, (3,3),padding='same'),
+    ReLU(),
+    MaxPooling2D((2,2)),
 
-model.add(Conv2D(128, (3,3), activation = 'relu'))
-model.add(MaxPooling2D((2,2)))
+    Flatten(),
+    Dropout(0.5),
+    Dense(512, activation='relu'),
+    Dense(1, activation='sigmoid')
+                                      ])
 
-model.add(Flatten())
-model.add(Dropout(0.5))
-model.add(Dense(512, activation='relu'))
-model.add(Dense(1, activation='sigmoid'))
 
-model.summary()
+    return model
 
 """## Data augmentation"""
 
@@ -75,12 +82,14 @@ checkpoint = ModelCheckpoint('modelo_perros_gatos.keras',monitor='val_accuracy',
 
 """## Compilando el modelo"""
 
-model.compile(loss='binary_crossentropy', optimizer =optimizers.Adam(),
+model1 = model1()
+
+model1.compile(loss='binary_crossentropy', optimizer =optimizers.Adam(),
              metrics=['accuracy'])
 
 """## Entrenando el modelo"""
 
-hist = model.fit(train_generator, steps_per_epoch=2000//32,
+hist = model1.fit(train_generator, steps_per_epoch=2000//32,
                 epochs=100,
                 validation_data=validation_generator,
                  validation_steps= 1000//32,
@@ -101,64 +110,93 @@ test_generator = test_datagen.flow_from_directory('/content/drive/MyDrive/Leccio
                                  class_mode='binary'
                                  )
 
-model2 = model
+model1.load_weights('./modelo_perros_gatos.keras')
 
-model2.load_weights('./modelo_perros_gatos.keras')
+model1.evaluate(test_generator)
 
-model2.evaluate(test_generator)
+"""### Modelo 2"""
 
 def model2():
 
-    model =models.Sequential()
+        model =models.Sequential([
+
+# Input -----------------------------
+        Input(shape=(150,150,3)),
+#Convolucion 1 --------------------------------
+        Conv2D(32, (3,3),padding='same'),
+        BatchNormalization(),
+        ReLU(),
+        MaxPooling2D((2,2)),
+        Dropout(0.2),
+
+#Convolucion 2 --------------------------------
+        Conv2D(32, (3,3),padding='same'),
+        BatchNormalization(),
+        ReLU(),
+        MaxPooling2D((2,2)),
+        Dropout(0.3),
+
+#Convolucion 3 --------------------------------
+        Conv2D(64, (3,3),padding='same'),
+        BatchNormalization(),
+        ReLU(),
+        MaxPooling2D((2,2)),
+        Dropout(0.4),
+
+#Convolucion 4 --------------------------------
+        Conv2D(128, (3,3),padding='same'),
+        BatchNormalization(),
+        ReLU(),
+        MaxPooling2D((2,2)),
+        Dropout(0.5),
+#Convolucion 5 --------------------------------
+        Conv2D(256, (3,3),padding='same'),
+        BatchNormalization(),
+        ReLU(),
+        MaxPooling2D((2,2)),
+        Dropout(0.5),
+#Aplanado 1 Dimension--------------------------------
+        Flatten(),
+ # Capas de clasificacion ----------------------
+        Dense(512, activation='relu'),
+        Dropout(0.5),
+        Dense(1, activation='sigmoid')
+
+    ])
 
 
-    #Convolucion 1
-    model.add(Conv2D(32,(3,3),activation='relu',input_shape=(150,150,3)))
-    model.add(MaxPooling2D((2,2)))
-    model.add(BatchNormalization())
-    model.add(Dropout(0.5))
-
-    #Convolucion 2
-    model.add(Conv2D(64,(3,3),activation='relu'))
-    model.add(MaxPooling2D((2,2)))
-    model.add(BatchNormalization())
-    model.add(Dropout(0.5))
-
-    #Convolucion 3
-    model.add(Conv2D(64,(3,3),activation='relu'))
-    model.add(MaxPooling2D((2,2)))
-    model.add(BatchNormalization())
-
-    #Convolucion 4
-    model.add(Conv2D(128,(3,3),activation='relu'))
-    model.add(MaxPooling2D((2,2)))
-    model.add(BatchNormalization())
-    model.add(Dropout(0.4))
-
-    #Convolucion 5
-    model.add(Conv2D(128,(3,3),activation='relu'))
-    model.add(MaxPooling2D((2,2)))
-    model.add(BatchNormalization())
-    model.add(Dropout(0.3))
 
 
-    model.add(Flatten())
 
+        return model
 
-    # Capas clasificacion
-    model.add(Dense(512,activation='relu'))
-    model.add(Dense(1,activation='sigmoid'))
+"""### CheckPoint"""
 
+checkpoint2 = ModelCheckpoint('modelo_perros_gatos_2.keras',monitor='val_accuracy', verbose= 1, save_best_only=True)
 
-    return model
+"""### Insanciamos el modelo"""
 
-model3 = model2()
+model2 = model2()
 
-model3.compile(loss='binary_crossentropy',optimizer = optimizers.Adam(learning_rate=0.001), metrics = ['accuracy'])
+"""### Compilacion"""
 
-hist3 = model3.fit(train_generator,
+model2.compile(loss='binary_crossentropy',optimizer = optimizers.Adam(learning_rate=0.001), metrics = ['accuracy'])
+
+"""### Entrenamiento"""
+
+hist2 = model2.fit(train_generator,
                 steps_per_epoch=2000//64,
                 epochs = 100,
                 validation_data = validation_generator,
                 validation_steps = 1000//64,
+                callbacks = [checkpoint2]
                 )
+
+plt.plot(hist2.history['accuracy'], label = 'Train')
+plt.plot(hist2.history['val_accuracy'], label = 'Val')
+plt.legend()
+plt.show()
+
+model2.load_weights('./modelo_perros_gatos_2.keras')
+
+model2.evaluate(test_generator)
