@@ -183,12 +183,140 @@ test = test.astype('float32')
 train = train.astype('float32')
 
 y_train = train['label']
-y_test = test['label']
+#y_test = test['label']
 del train['label']
-del test['label']
+#del test['label']
 
 # ahora dividimos cada pixel entre 255 para que nos queden valores de 0 - 1
 train = train / 255
-test = test / 255
+#test = test / 255
 
-train.head()
+train.shape
+
+"""# Creacion del modelo"""
+
+import tensorflow as tf
+from tensorflow.keras.layers import Conv2D, MaxPooling2D, Dropout, Flatten, Dense ,BatchNormalization,ReLU,Input
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
+from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping
+from tensorflow.keras import models, optimizers, regularizers
+
+# convertimos los dataframes train y tes a arrays numpy
+train_np = train.to_numpy()
+#test_np = test.to_numpy()
+
+train_images = train_np.reshape(train_np.shape[0], 28, 28, 1) # El 1 al final es el canal del color
+#test_images = test_np.reshape(test_np.shape[0], 28, 28, 1)
+
+train_images.shape
+
+# cambiamos el label de tipo escalar a un arrebglo binario
+y_train[0]
+
+y_train = tf.keras.utils.to_categorical(y_train, 25)
+#y_test = tf.keras.utils.to_categorical(y_test, 25)
+
+"""# Creacion del modelo"""
+
+def model1 ():
+
+  model = models.Sequential([
+          Input(shape=(28,28,1)),
+
+          Conv2D(32,(3,3),padding='same'),
+          BatchNormalization(),
+          ReLU(),
+          MaxPooling2D((2,2)),
+          Dropout(0.2),
+
+          Conv2D(64,(3,3),padding='same'),
+          BatchNormalization(),
+          ReLU(),
+          MaxPooling2D((2,2)),
+          Dropout(0.4),
+
+          Conv2D(128,(3,3),padding='same'),
+          BatchNormalization(),
+          ReLU(),
+          MaxPooling2D((2,2)),
+          Dropout(0.5),
+
+          Flatten(),
+          Dense(256,activation='relu'),
+          Dropout(0.5),
+          Dense(25,activation='softmax')
+
+          ])
+
+  return model
+
+"""## Callbacks"""
+
+checkpoint = ModelCheckpoint('optmizador.keras',monitor='val_accuracy', verbose= 1, save_best_only=True)
+
+# compilacin
+model = model1()
+model.compile(optimizer='adam',loss='categorical_crossentropy',metrics=['accuracy'])
+
+train_images.shape
+
+# separamos entrenamioento y validacion
+x_train = train_images[:20000]
+x_val = train_images[20000:]
+y_train_1 = y_train[:20000]
+y_val = y_train[20000:]
+
+y_train.shape
+
+## Entrenando el modelo"""
+
+hist = model.fit(x_train, y_train_1,
+                  batch_size=32,
+                epochs=100,
+                validation_data=(x_val,y_val),
+                 verbose=1,
+                 callbacks=[checkpoint])
+
+import matplotlib.pyplot as plt
+
+plt.plot(hist.history['accuracy'], label = 'Train')
+plt.plot(hist.history['val_accuracy'], label = 'Val')
+plt.legend()
+plt.show()
+
+type(hist.history['accuracy'])
+
+from sklearn.model_selection import KFold
+
+# Tranformamos la data de train y test a dataframes
+x_train_df = pd.DataFrame(train_images)
+x_test_df = pd.DataFrame(test)
+
+y_train_df = pd.DataFrame(y_train)
+y_test_df = pd.DataFrame(y_test)
+
+# hacemos un k-fold validation
+# Inicializar KFold
+kf = KFold(n_splits=4)
+
+#Listas que almacenan el mae y r2
+accuracy = []
+val_accuracy = []
+# Ciclo de  cross-validation
+for train_index, test_index in kf.split(train_images):
+    X_train_fold, X_test_fold = train_images.iloc[train_index], x_train.iloc[test_index]#train_index lista de indices de set de entrenamiento
+    y_train_fold, y_test_fold = y_train.iloc[train_index], y_train.iloc[test_index]
+
+
+
+   # Entrenamiento del modelo con el set de entrenamiento
+    history = model.fit(X_train_fold, y_train_fold, epochs=100, batch_size =32,
+                        validation_data = (X_test_fold, y_test_fold),
+                        verbose=0)
+
+
+    # Calcular y almacenar accuracy
+    accuracy.extend(hist.history['accuracy'])
+
+    #Calcular y almacenar val_accuracy
+    val_accuracy.extend(hist.history['val_accuracy'])
