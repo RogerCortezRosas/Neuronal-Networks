@@ -180,16 +180,14 @@ train = train.astype('float32')
 
 test = test.astype('float32')
 
-train = train.astype('float32')
-
 y_train = train['label']
-#y_test = test['label']
+y_test = test['label']
 del train['label']
-#del test['label']
+del test['label']
 
 # ahora dividimos cada pixel entre 255 para que nos queden valores de 0 - 1
 train = train / 255
-#test = test / 255
+test = test / 255
 
 train.shape
 
@@ -214,7 +212,7 @@ train_images.shape
 y_train[0]
 
 y_train = tf.keras.utils.to_categorical(y_train, 25)
-#y_test = tf.keras.utils.to_categorical(y_test, 25)
+y_test = tf.keras.utils.to_categorical(y_test, 25)
 
 """# Creacion del modelo"""
 
@@ -289,11 +287,13 @@ type(hist.history['accuracy'])
 from sklearn.model_selection import KFold
 
 # Tranformamos la data de train y test a dataframes
-x_train_df = pd.DataFrame(train_images)
-x_test_df = pd.DataFrame(test)
+#x_train_df = pd.DataFrame(train_images)
+#x_test_df = pd.DataFrame(test)
 
 y_train_df = pd.DataFrame(y_train)
 y_test_df = pd.DataFrame(y_test)
+
+y_train_df.values
 
 # hacemos un k-fold validation
 # Inicializar KFold
@@ -303,15 +303,24 @@ kf = KFold(n_splits=4)
 accuracy = []
 val_accuracy = []
 # Ciclo de  cross-validation
-for train_index, test_index in kf.split(train_images):
-    X_train_fold, X_test_fold = train_images.iloc[train_index], x_train.iloc[test_index]#train_index lista de indices de set de entrenamiento
-    y_train_fold, y_test_fold = y_train.iloc[train_index], y_train.iloc[test_index]
+for train_index, test_index in kf.split(train):
+    X_train_fold, X_test_fold = train.iloc[train_index], train.iloc[test_index]#train_index lista de indices de set de entrenamiento
+    y_train_fold, y_test_fold = y_train_df.iloc[train_index], y_train_df.iloc[test_index]
 
+    # Crear y compilar el modelo
+    model = model1()
+    model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+
+    X_train_fold_np = X_train_fold.to_numpy()
+    train_images = X_train_fold_np.reshape(X_train_fold_np.shape[0], 28, 28, 1)
+
+    X_test_fold_np = X_test_fold.to_numpy()
+    test_images = X_test_fold_np.reshape(X_test_fold_np.shape[0], 28, 28, 1)
 
 
    # Entrenamiento del modelo con el set de entrenamiento
-    history = model.fit(X_train_fold, y_train_fold, epochs=100, batch_size =32,
-                        validation_data = (X_test_fold, y_test_fold),
+    history = model.fit(train_images, y_train_fold, epochs=100, batch_size =32,
+                        validation_data = (test_images, y_test_fold),
                         verbose=0)
 
 
