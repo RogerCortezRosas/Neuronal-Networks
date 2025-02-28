@@ -240,3 +240,206 @@ history_hypermodel = hypermodel.fit(
     callbacks = [callback_early],
     validation_data = validation_generator
 )
+
+"""# Guardamos solo la arquitectura del modelo"""
+
+config_dict = model_1.get_config()
+
+print(config_dict)
+
+"""# Crear nuevo modelo desde la arquitectura"""
+
+model_same_config = tf.keras.Sequential.from_config(config_dict)
+
+model_same_config.summary()
+
+"""# Guardar y cargar unicamente los pesos"""
+
+model_same_config.load_weights('best_wights.keras')
+
+"""# Criterios para almacenar modelos
+
+Almacenar con el callback ModelCheckpoint los mejores modelos con sus pesos
+"""
+
+new_model = tf.keras.Sequential.from_config(config_dict)
+
+new_model.compile(optimizer='adam',loss='categorical_crossentropy',metrics=['accuracy'])
+
+checkpoint_path = "model_checpoints_complete.keras"
+checkpoint_weighs= ModelCheckpoint(
+    filepath = checkpoint_path,
+    save_freq  = "epoch",
+    save_weights_only = False,
+    monitor = "val_accuracy",
+    save_best_only = True, # para almacenar los mejores modelos de acuerdo al val_accuracy
+    verbose = 1
+
+)
+
+history_complete = new_model.fit(
+    train_generator,
+    epochs = 20,
+    callbacks = [checkpoint_weighs],
+    validation_data = validation_generator
+)
+
+# Guardar el modelo manul
+new_model.save("mymodel.keras")
+
+#Para guardar el arhicvo en mi local
+from google.colab import files
+files.download("mymodel.keras")
+
+#Cargar el modelo donde ya no es necesario compliar
+new_model_2 = tf.keras.models.load_model("mymodel.keras")
+
+#Evaluar el nuevo modelo
+new_model_2.evaluate(test_generator)
+
+"""# Usar el formato .h5 para guardar modelos
+
+Hierarchical Data Format (HDF5 format)
+"""
+
+!pip install pyyaml h5py
+
+new_model.save("mymodel.h5")
+
+"""# Aprendizaje por transferencia
+
+
+Consejo : Encuentra un modelo el cual tenga caracteristicas similares a lo que tines size de las imagenes para que no se pierda informacion
+"""
+
+train_generator_resize = train_datagen.flow_from_directory(
+    train_dir,
+    target_size = (150, 150), # estandarizar (cambia)el tamano de las matrices para evitar errores de tamanos
+    batch_size = 128, # Cantidad de imagenes juntas que van entrenarse
+    class_mode = "categorical",
+    color_mode = "rgb", # Indica el color de las imagenes
+    subset = "training" # define a que corresponde es subset
+)
+
+validation_generator_resize = test_datagen.flow_from_directory(
+    test_dir,
+    target_size = (150, 150),
+    batch_size = 128,
+    class_mode = "categorical",
+    color_mode = "rgb",
+    subset = "validation"
+)
+
+test_generator_resize = test_datagen.flow_from_directory(
+    test_dir,
+    target_size = (150, 150),
+    batch_size = 128,
+    class_mode = "categorical",
+    color_mode = "rgb"
+)
+
+from tensorflow.keras.applications.inception_v3 import InceptionV3
+
+pre_trained_model = InceptionV3(
+    include_top = False,#No incluir la ultima capa de clasificacion
+    input_shape = (150,150,3),
+
+
+)
+
+#No re-entrenar las capas que ya estan entrendas
+for layer in pre_trained_model.layers:
+  layer.trainable = False
+
+pre_trained_model.summary()
+
+"""## Congelamos el modelo
+Congelamos hasta la capa mixed 7 para agregar nuestra capas de salida.
+
+Aqui tu decides la secuencia de las capas
+"""
+
+classes = [char for char in string.ascii_uppercase if char != "J" if char != "Z"]
+
+last_layers= pre_trained_model.get_layer("mixed7")
+last_output = last_layers.output
+
+# Ordenamos las capas
+
+x = Flatten()(last_output)# donde(last_output) es la capa anterior
+x = Dense(128, activation = "relu")(x)
+x = Dropout(0.2)(x)
+x = Dense(len(classes), activation = "softmax")(x)
+
+
+model_keras = tf.keras.Model(pre_trained_model.input, x)#aqui leindicas que primero va el modelo pre entrenado luego la salida configurada
+model_keras.compile(optimizer= "adam", loss = "categorical_crossentropy", metrics = ["accuracy"])
+model_keras.summary()
+
+"""# Entrenar el nuevo modelo"""
+
+history_keras = model_keras.fit(
+    train_generator_resize,
+    epochs = 5,
+    validation_data = validation_generator_resize
+)
+
+model_keras.evaluate(test_generator_resize)
+
+"""## Creamos nuestra modelo pre-entrenado con modelos desde TensorFlow Hub"""
+
+import tensorflow_hub as hub
+
+import tensorflow.keras.applications.mobilenet as mb
+
+train_generator_resize_hub = train_datagen.flow_from_directory(
+    train_dir,
+    target_size = (160, 160), # estandarizar (cambia)el tamano de las matrices para evitar errores de tamanos
+    batch_size = 128, # Cantidad de imagenes juntas que van entrenarse
+    class_mode = "categorical",
+    color_mode = "rgb", # Indica el color de las imagenes
+    subset = "training" # define a que corresponde es subset
+)
+
+validation_generator_resize_hub = test_datagen.flow_from_directory(
+    test_dir,
+    target_size = (160, 160),
+    batch_size = 128,
+    class_mode = "categorical",
+    color_mode = "rgb",
+    subset = "validation"
+)
+
+test_generator_resize_hub = test_datagen.flow_from_directory(
+    test_dir,
+    target_size = (160, 160),
+    batch_size = 128,
+    class_mode = "categorical",
+    color_mode = "rgb"
+)
+
+model_url = "https://tfhub.dev/google/imagenet/mobilenet_v1_050_160/classification/4"
+
+model_hub = tf.keras.Sequential([
+
+                                 mb.MobileNet(input_shape=(160,160, 3), include_top=False),
+                                 tf.keras.layers.Flatten(),
+                                 tf.keras.layers.Dense(128, activation ="relu"),
+                                 tf.keras.layers.Dropout(rate=0.2),
+                                 tf.keras.layers.Dense(len(classes), activation = "softmax")
+])
+
+model_hub.build((None, 160, 160, 3))
+model_hub.summary()
+
+model_hub.compile(optimizer= "adam", loss = "categorical_crossentropy", metrics = ["accuracy"])
+
+history_hub = model_hub.fit(
+    train_generator_resize_hub,
+    epochs = 5,
+    validation_data = validation_generator_resize_hub
+)
+
+model_hub.evaluate(test_generator_resize_hub)
+
+from tensorflow.keras.callbacks import TensorBoard
